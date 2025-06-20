@@ -1,0 +1,77 @@
+version : '3'
+
+networks:
+  devnology-network:
+    driver: bridge
+
+services :
+
+  devnology-postgres:
+    image: postgres:15
+    container_name: devnology-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+    ports:
+      - "5440:5432"
+    networks:
+      - devnology-network
+
+  devnology-api:
+    build:
+      context: ./devnology-api
+      dockerfile: Dockerfile.dev
+    container_name: devnology-api
+    restart: always
+    volumes:
+      - ./devnology-api/:/usr/src/workspace/devnology-api
+    ports:
+      - 3001:3001
+    networks:
+      - devnology-network
+
+  devnologyweb-ui :
+    build:
+      context: ./devnologyweb-ui
+      dockerfile: Dockerfile.dev
+    container_name: devnologyweb-ui
+    restart: always
+    volumes:
+      - ./devnologyweb-ui/:/usr/src/workspace/devnologyweb-ui
+    ports:
+      - 3000:3000
+    networks:
+      - devnology-network
+
+  # jaeger:
+  #   image: jaegertracing/all-in-one:latest
+  #   container_name: jaeger
+  #   ports:
+  #     - "8081:16686"
+  #     - "14268"
+  #     - "14250"
+  #   networks:
+  #     - nepchatbot-network
+
+  # otel-collector:
+  #   image: otel/opentelemetry-collector:latest
+  #   container_name: otel-collector
+  #   command: ["--config=/etc/otel-collector-config.yml"]
+  #   volumes:
+  #     - ./nepchatbot-api/otel-collector-config.yml:/etc/otel-collector-config.yml
+  #   ports:
+  #     - "1888:1888"
+  #     - "13133:13133"
+  #     - "4317:4317"
+  #     - "4318:4318"
+  #     - "55679:55679"
+  #   depends_on:
+  #     - jaeger
+  #   links:
+  #     - jaeger
+  #   networks:
+  #     - nepchatbot-network
