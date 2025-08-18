@@ -1,0 +1,41 @@
+name: Docker build & push to ECR
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'Dockerfile'
+      - '.github/workflows/docker-ecr.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: sa-east-1
+  ECR_REPOSITORY: devnology-api
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Configure credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - nome: Login no ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build e push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            416997488095.dkr.ecr.sa-east-1.amazonaws.com/devnology-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
