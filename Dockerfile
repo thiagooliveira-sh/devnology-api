@@ -12,3 +12,6 @@ COPY --from=builder /tmp/dist ./dist
 EXPOSE 3001
 
 CMD ["npm", "start"]
+
+
+ .github/workflows/docker-ecr.yml
