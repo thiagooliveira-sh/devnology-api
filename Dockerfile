@@ -1,14 +1,34 @@
-FROM node:20.17.0-alpine3.19 as builder
+FROM node:20.17.0-alpine3.19 AS builder
 
-COPY . /tmp
-WORKDIR /tmp
+WORKDIR /app
 
-RUN npm i && npm run build
+# Copia os arquivos de dependência
+COPY package.json package-lock.json ./
 
-FROM node:20.17.0-alpine3.19
+# Instala TODAS as dependências (incluindo as de desenvolvimento para a build)
+RUN npm install
 
-COPY --from=builder /tmp/dist ./dist
+# Copia o resto do código-fonte
+COPY . .
 
+RUN npm run build
+
+RUN npm prune --production
+
+FROM node:20.17.0-alpine3.19 AS final
+
+WORKDIR /app
+
+
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json ./
+
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+
+# Expõe a porta da aplicação
 EXPOSE 3001
 
-CMD ["npm", "start"]
+# Comando para iniciar a aplicação em modo de produção
+CMD ["node", "dist/main"]
