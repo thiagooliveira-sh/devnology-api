@@ -17,13 +17,14 @@ RUN npm prune --production
 
 FROM node:20.17.0-alpine3.19 AS final
 
-WORKDIR /app
+RUN apk add --no-cache ca-certificates && update-ca-certificates
 
-COPY --from=builder /app/global-bundle.pem ./
+WORKDIR /app
+COPY --from=builder /app/global-bundle.pem /usr/local/share/ca-certificates/global-bundle.pem
+RUN update-ca-certificates
+
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
-
-
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
