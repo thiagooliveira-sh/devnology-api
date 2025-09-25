@@ -19,7 +19,7 @@ FROM node:20.17.0-alpine3.19 AS final
 
 WORKDIR /app
 
-COPY --from-builder /app/global-bundle.pem ./
+COPY --from=builder /app/global-bundle.pem ./
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 
