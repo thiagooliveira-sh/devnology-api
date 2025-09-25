@@ -11,6 +11,8 @@ RUN npm install
 # Copia o resto do código-fonte
 COPY . .
 
+RUN npm install @types/node
+
 RUN npm run build
 
 RUN npm prune --production
@@ -20,7 +22,7 @@ FROM node:20.17.0-alpine3.19 AS final
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 
 WORKDIR /app
-COPY --from=builder /app/global-bundle.pem /usr/local/share/ca-certificates/global-bundle.pem
+COPY --from=builder /app/global-bundle.pem /app/global-bundle.pem
 RUN update-ca-certificates
 
 COPY --from=builder /app/package.json ./

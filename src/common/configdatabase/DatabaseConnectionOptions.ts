@@ -4,6 +4,7 @@ import { MyCustomLogger } from './logger/MyCustomLogger'
 import { PaymentModel } from 'src/sales/models/PaymentModel'
 import { ProductModel } from 'src/sales/models/ProductModel'
 import { SaleModel } from 'src/sales/models/SaleModel'
+import * as fs from 'fs'
 
 export abstract class Database {
 
@@ -52,9 +53,9 @@ export abstract class Database {
 
             case DatabaseTypeEnum.POSTGRES:
                 if (process.env.NODE_ENV === 'development')
-                    connection = { type: 'postgres', ...this.database_dev, ssl: { rejectUnauthorized: false, },}
+                    connection = { type: 'postgres', ...this.database_dev, ssl: { ca: fs.readFileSync('/app/global-bundle.pem').toString(), rejectUnauthorized: true } }
                 else if (process.env.NODE_ENV === 'production')
-                    connection = { type: 'postgres', ...this.database_prd, ssl: { rejectUnauthorized: false, },}
+                    connection = { type: 'postgres', ...this.database_prd, ssl: { ca: fs.readFileSync('/app/global-bundle.pem').toString(), rejectUnauthorized: true } }
                 return connection
         }
     }
@@ -76,9 +77,9 @@ export abstract class Database {
 
             case DatabaseTypeEnum.POSTGRES:
                 if (process.env.NODE_ENV === 'development')
-                    connection = { type: 'postgres', ...this.database_dev, schema: process.env.DATABASE_SCHEMA_DEV, ssl: { rejectUnauthorized: false, },}
+                    connection = { type: 'postgres', ...this.database_dev, schema: process.env.DATABASE_SCHEMA_DEV, ssl: { ca: fs.readFileSync('/app/global-bundle.pem').toString(), rejectUnauthorized: true } }
                 else if (process.env.NODE_ENV === 'production')
-                    connection = { type: 'postgres', ...this.database_prd, schema: process.env.DATABASE_SCHEMA_PRD, ssl: { rejectUnauthorized: false, },}
+                    connection = { type: 'postgres', ...this.database_prd, schema: process.env.DATABASE_SCHEMA_PRD, ssl: { ca: fs.readFileSync('/app/global-bundle.pem').toString(), rejectUnauthorized: true } }
                 return connection
         }
 
