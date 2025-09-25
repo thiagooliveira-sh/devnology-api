@@ -52,9 +52,9 @@ export abstract class Database {
 
             case DatabaseTypeEnum.POSTGRES:
                 if (process.env.NODE_ENV === 'development')
-                    connection = { type: 'postgres', ...this.database_dev, ssl: { rejectUnauthorized: false, }, extra: { ssl: true } }
+                    connection = { type: 'postgres', ...this.database_dev, ssl: { rejectUnauthorized: true, ca: require("fs").readFileSync("/app/global-bundle.pem").toString(), }, extra: { ssl: true } }
                 else if (process.env.NODE_ENV === 'production')
-                    connection = { type: 'postgres', ...this.database_prd, ssl: { rejectUnauthorized: false, }, extra: { ssl: true } }
+                    connection = { type: 'postgres', ...this.database_prd, ssl: { rejectUnauthorized: true, ca: require("fs").readFileSync("/app/global-bundle.pem").toString(), }, extra: { ssl: true } }
                 return connection
         }
     }
@@ -76,9 +76,9 @@ export abstract class Database {
 
             case DatabaseTypeEnum.POSTGRES:
                 if (process.env.NODE_ENV === 'development')
-                    connection = { type: 'postgres', ...this.database_dev, schema: process.env.DATABASE_SCHEMA_DEV, ssl: { rejectUnauthorized: false, }, extra: { ssl: true } }
+                    connection = { type: 'postgres', ...this.database_dev, schema: process.env.DATABASE_SCHEMA_DEV, ssl: { rejectUnauthorized: true, ca: require("fs").readFileSync("/app/global-bundle.pem").toString(), }, extra: { ssl: true } }
                 else if (process.env.NODE_ENV === 'production')
-                    connection = { type: 'postgres', ...this.database_prd, schema: process.env.DATABASE_SCHEMA_PRD, ssl: { rejectUnauthorized: false, }, extra: { ssl: true } }
+                    connection = { type: 'postgres', ...this.database_prd, schema: process.env.DATABASE_SCHEMA_PRD, ssl: { rejectUnauthorized: true, ca: require("fs").readFileSync("/app/global-bundle.pem").toString(), }, extra: { ssl: true } }
                 return connection
         }
 
