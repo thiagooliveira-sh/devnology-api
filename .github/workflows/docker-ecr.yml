@@ -1,39 +1,76 @@
-name: Docker build & push to ECR
+name: Docker build & push to ECR and update ECS
 
 on:
   push:
-    branches: [ main ]
-    paths: 
+    branches:
+      - main
+    paths:
       - 'Dockerfile'
-      - '.github/workflows/docker-ecr.yml'
+      - '*'
+      - '.github/workflows/docker-ecr-ecs-update.yml'
   workflow_dispatch:
 
 env:
   AWS_REGION: sa-east-1
   ECR_REPOSITORY: devnology-api
+  ECS_CLUSTER: devnology-cluster
+  ECS_SERVICE: devnology-api-service
+  ECS_CONTAINER_NAME: devnology-api
+  ECS_TASK_DEFINITION_FAMILY: devnology-api-task
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Configure credentials
+
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login no ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-      
-      - name: Build e push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            416997488095.dkr.ecr.sa-east-1.amazonaws.com/devnology-api:${{ github.sha }}
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Download task definition
+        id: download-task-definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION_FAMILY }} \
+          --query taskDefinition > task-definition.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: render-task-definition
+        run: |
+          IMAGE_URI=${{ steps.build-image.outputs.image }}
+          jq --arg IMAGE_URI "$IMAGE_URI" \
+             '.containerDefinitions[0].image = $IMAGE_URI' \
+             task-definition.json > new-task-definition.json
+
+      - name: Register new task definition
+        id: register-task-definition
+        run: |
+          TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://new-task-definition.json \
+          --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "task_definition_arn=$TASK_DEFINITION_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update Amazon ECS service
+        run: |
+          aws ecs update-service \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --service ${{ env.ECS_SERVICE }} \
+          --task-definition ${{ steps.register-task-definition.outputs.task_definition_arn }}
