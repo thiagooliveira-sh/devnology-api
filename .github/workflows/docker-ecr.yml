@@ -11,7 +11,7 @@ env:
   ECR_REPOSITORY: devnology-api
   ECS_CLUSTER: devnology-cluster
   ECS_SERVICE: devnology-api-service
-  ECS_CONTAINER_NAME: devnology-api
+  ECS_CONTAINER_NAME: devnology-api # Este env var não está sendo usado, mas mantido por consistência
   ECS_TASK_DEFINITION_FAMILY: devnology-api-task
 
 jobs:
@@ -42,31 +42,40 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Download task definition
-        id: download-task-definition
+      # --- ETAPA MODIFICADA ---
+      - name: Download and filter task definition
+        id: task-def
         run: |
-          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION_FAMILY }} \
-          --query taskDefinition > task-definition.json
+          # Baixa a definição da tarefa e extrai o objeto 'taskDefinition'
+          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION_FAMILY }} --query taskDefinition > task-definition.json
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: render-task-definition
-        run: |
-          IMAGE_URI=${{ steps.build-image.outputs.image }}
-          jq --arg IMAGE_URI "$IMAGE_URI" \
-             '.containerDefinitions[0].image = $IMAGE_URI' \
+          jq --arg IMAGE_URI "${{ steps.build-image.outputs.image }}" \
+             '{
+                family: .family,
+                containerDefinitions: (.containerDefinitions | .[0].image = $IMAGE_URI | .),
+                executionRoleArn: .executionRoleArn,
+                networkMode: .networkMode,
+                volumes: .volumes,
+                placementConstraints: .placementConstraints,
+                requiresCompatibilities: .requiresCompatibilities,
+                cpu: .cpu,
+                memory: .memory,
+                taskRoleArn: .taskRoleArn
+              }' \
              task-definition.json > new-task-definition.json
 
       - name: Register new task definition
         id: register-task-definition
         run: |
           TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
-          --cli-input-json file://new-task-definition.json \
-          --query 'taskDefinition.taskDefinitionArn' --output text)
+            --cli-input-json file://new-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
           echo "task_definition_arn=$TASK_DEFINITION_ARN" >> $GITHUB_OUTPUT
 
       - name: Update Amazon ECS service
         run: |
           aws ecs update-service \
-          --cluster ${{ env.ECS_CLUSTER }} \
-          --service ${{ env.ECS_SERVICE }} \
-          --task-definition ${{ steps.register-task-definition.outputs.task_definition_arn }}
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ steps.register-task-definition.outputs.task_definition_arn }} \
+            --force-new-deployment
